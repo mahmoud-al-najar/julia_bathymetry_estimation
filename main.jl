@@ -12,7 +12,7 @@ using Base.Iterators: partition
 csv_path = "C:/Users/Al-Najar/PycharmProjects/bathymetry_estimation/models/v8/data/v8_raw_40x41.csv"
 dataset_size = 80
 batch_size = 8
-epochs = 100
+epochs = 5
 train_test_split = 0.8
 random_seed = 1
 Random.seed!(random_seed)
@@ -37,7 +37,7 @@ x_data, y_data = load_dataset(df);
 (x_train, y_train), (x_test, y_test) = splitobs((x_data, y_data), at = train_test_split)
 
 train = [(cat(x_train[i]..., dims = 4), y_train[i]) for i in partition(1:length(x_train), batch_size)]
-test = [(cat(x_test[i]..., dims = 4), y_test[i]) for i in partition(1:length(x_test), length(x_test))]
+test = [(cat(x_test[i]..., dims = 4), y_test[i]) for i in partition(1:length(x_test), length(x_test))][1]
 
 @info("Building the model")
 model = Chain(
@@ -49,9 +49,6 @@ model = Chain(
     Dense(256, 1, relu)
 )
 
-# Check if the model compiles correctly
-model(train[1][1])
-
 # Load onto GPU if available
 @info("Loading onto GPU")
 train = gpu.(train)
@@ -59,7 +56,16 @@ test = gpu.(test)
 model = gpu(model)
 
 opt = ADAM(1e-05, (0.99, 0.999))
-loss(x, y) = Flux.mse(model(x), y)
+# loss(x, y) = Flux.mse(model(x), y)
+
+function loss(x, y)
+    return Flux.mse(model(x), y)
+end
+
+# Make sure it's all working well
+model(train[1][1])
+loss(train[1]...)  # Runs fine
+Flux.train!(loss, params(model), train, opt)  # TODO in train!: UndefRefError when calculating loss
 
 @info("Training")
 best_acc = 999
@@ -67,5 +73,6 @@ last_improvement = 0
 for epoch_idx in 1:epochs
     global best_acc, last_improvement
     # Train for a single epoch
-    Flux.train!(loss, Flux.params(model), train, opt, cb = () -> println(string("Epoch ", epoch_idx)))
+    println(epoch_idx)
+    Flux.train!(loss, Flux.params(model), train, opt)
 end
