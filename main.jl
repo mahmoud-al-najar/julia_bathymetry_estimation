@@ -5,6 +5,7 @@ using DataFrames
 using Random
 using MLDataUtils
 using FileIO, MappedArrays
+using HDF5
 
 
 # Parameter setup
@@ -29,12 +30,12 @@ function load_dataset(dataset)
     x = dataset.col_path
     y = dataset.col_depth / 10
     println(x)
-    return mappedarray(load, x), y
+    return mappedarray(f -> h5open(f, "r")["data"], x), y
 end
 x_data, y_data = load_dataset(df);
 (x_train, y_train), (x_test, y_test) = splitobs((x_data, y_data), at = 0.8)
 println(size(x_train))
-exit()
+
 # Model construction
 model = Chain(
     Conv((3, 3), 4=>16, pad=(1, 1), relu),
@@ -48,7 +49,7 @@ model = Chain(
 
 opt = ADAM(1e-05, (0.99, 0.999))
 loss(x, y) = Flux.mse(m(x), y)
-ps = Flux.params(m)
+# ps = Flux.params(m)
 
 
 # Flux.train!(loss, ps, data, opt)
