@@ -6,6 +6,7 @@ using MLDataUtils
 using FileIO, MappedArrays
 using HDF5
 using Base.Iterators: partition
+using Statistics
 
 
 # Parameter setup
@@ -31,13 +32,13 @@ end
 function load_dataset(dataset)
     x = dataset.col_path
     y = dataset.col_depth / 10
-    return mappedarray(f -> permutedims(h5open(f, "r")["data"][1:4,:,1:40], [2, 3, 1]), x), y
+    return mappedarray(f -> permutedims(h5open(f, "r")["data"][1:4,:,1:40], [2, 3, 1]), x), convert(Array{Float32}, y)
 end
 x_data, y_data = load_dataset(df);
 (x_train, y_train), (x_test, y_test) = splitobs((x_data, y_data), at = train_test_split)
 
-train = [(cat(x_train[i]..., dims = 4), y_train[i]) for i in partition(1:length(x_train), batch_size)]
-test = [(cat(x_test[i]..., dims = 4), y_test[i]) for i in partition(1:length(x_test), length(x_test))][1]
+train = [(cat(x_train[i]..., dims = 4), cat(y_train[i]..., dims = 2)) for i in partition(1:length(x_train), batch_size)]
+test = [(cat(x_test[i]..., dims = 4), cat(y_test[i]..., dims = 2)) for i in partition(1:length(x_test), length(x_test))]
 
 @info("Building the model")
 model = Chain(
@@ -56,16 +57,16 @@ test = gpu.(test)
 model = gpu(model)
 
 opt = ADAM(1e-05, (0.99, 0.999))
-# loss(x, y) = Flux.mse(model(x), y)
 
 function loss(x, y)
+    # return mean((model(x) - y) .^ 2)
     return Flux.mse(model(x), y)
 end
 
 # Make sure it's all working well
 model(train[1][1])
-loss(train[1]...)  # Runs fine
-Flux.train!(loss, params(model), train, opt)  # TODO in train!: UndefRefError when calculating loss
+loss(train[1]...)
+Flux.gradient(() -> loss(train[1]...), params(model))
 
 @info("Training")
 best_acc = 999
