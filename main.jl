@@ -3,19 +3,19 @@ using CSV
 using DataFrames
 using Random
 using MLDataUtils
-using FileIO, MappedArrays
+using FileIO
 using HDF5
 using Base.Iterators: partition
 using Statistics
-
+include("dataloader.jl")
 
 # Parameter setup
 csv_path = "C:/Users/Al-Najar/PycharmProjects/bathymetry_estimation/models/v8/data/v8_raw_40x41.csv"
-dataset_size = 80
-batch_size = 8
-epochs = 5
+dataset_size = 10
+batch_size = 2
+epochs = 2
 train_test_split = 0.8
-random_seed = 1
+random_seed = 2
 Random.seed!(random_seed)
 
 @info("Preparing the dataset")
@@ -32,13 +32,12 @@ end
 function load_dataset(dataset)
     x = dataset.col_path
     y = dataset.col_depth / 10
-    return mappedarray(f -> permutedims(h5open(f, "r")["data"][1:4,:,1:40], [2, 3, 1]), x), convert(Array{Float32}, y)
+    return x,  convert(Array{Float32}, y)  # Y
 end
+
 x_data, y_data = load_dataset(df);
 (x_train, y_train), (x_test, y_test) = splitobs((x_data, y_data), at = train_test_split)
-
-train = [(cat(x_train[i]..., dims = 4), cat(y_train[i]..., dims = 2)) for i in partition(1:length(x_train), batch_size)]
-test = [(cat(x_test[i]..., dims = 4), cat(y_test[i]..., dims = 2)) for i in partition(1:length(x_test), length(x_test))]
+trainloader = DataLoader((x_train, y_train), batchsize=batch_size, shuffle=true)
 
 @info("Building the model")
 model = Chain(
@@ -52,9 +51,8 @@ model = Chain(
 
 # Load onto GPU if available
 @info("Loading onto GPU")
-train = gpu.(train)
-test = gpu.(test)
 model = gpu(model)
+trainloader = gpu(trainloader)
 
 opt = ADAM(1e-05, (0.99, 0.999))
 
@@ -63,10 +61,7 @@ function loss(x, y)
     return Flux.mse(model(x), y)
 end
 
-# Make sure it's all working well
-model(train[1][1])
-loss(train[1]...)
-Flux.gradient(() -> loss(train[1]...), params(model))
+Flux.train!(loss, Flux.params(model), trainloader, opt)
 
 @info("Training")
 best_acc = 999
@@ -74,6 +69,6 @@ last_improvement = 0
 for epoch_idx in 1:epochs
     global best_acc, last_improvement
     # Train for a single epoch
-    println(epoch_idx)
-    Flux.train!(loss, Flux.params(model), train, opt)
+    println("EPOCH: ", epoch_idx)
+    Flux.train!(loss, Flux.params(model), trainloader, opt)
 end
