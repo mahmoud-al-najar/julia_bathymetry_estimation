@@ -1,9 +1,11 @@
 using Random: randperm!
+using HDF5
 
 """
     MODIFIED DataLoader Class
     Modifications:
-      - Altered "Base.iterate" implementation to hdf5 (.h5) files only when needed
+      - Altered "Base.iterate" implementation to handle hdf5 (.h5) files
+      - Files are only read from disk when they're needed
 
     Original version: https://github.com/boathit/Benchmark-Flux-PyTorch/blob/master/dataloader.jl
     Original documentation:
@@ -63,7 +65,7 @@ function Base.iterate(it::DataLoader, start = 1)
     # raw_batch[1][i] here includes the path to the h5 file to be read
     img = permutedims(h5open(raw_batch[1][i], "r")["data"][1:4,:,1:40], [2, 3, 1])
     X_batch[:, :, :, i] = img
-    
+
     depth = raw_batch[2][i]
     Y_batch[1, i] = depth
   end
