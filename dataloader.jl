@@ -61,7 +61,7 @@ function Base.iterate(it::DataLoader, start = 1)
   X_batch = Array{Float32}(undef, 40, 40, 4, it.batchsize)
   Y_batch = Array{Float32}(undef, 1, it.batchsize)
 
-  for i in 1:it.batchsize
+  for i in 1:length(raw_batch[1])  # last batch could be smaller than (it.batchsize)
     # raw_batch[1][i] here includes the path to the h5 file to be read
     img = permutedims(h5open(raw_batch[1][i], "r")["data"][1:4,:,1:40], [2, 3, 1])
     X_batch[:, :, :, i] = img
