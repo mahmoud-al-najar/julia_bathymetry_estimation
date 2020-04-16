@@ -8,8 +8,18 @@ using Printf
 using BSON
 include("dataloader.jl")
 
+using CUDAapi
+if has_cuda()
+    @info "CUDA is on"
+    import CuArrays
+    CuArrays.allowscalar(false)
+else
+    @error "Couldn't find CUDA"
+    exit()
+end
+
 # Parameter setup
-csv_path = "C:/Users/Al-Najar/PycharmProjects/bathymetry_estimation/models/v8/data/v8_raw_40x41.csv"
+csv_path = "" # ------------------------ TO BE SET
 dataset_size = 10_000
 batch_size = 64
 epochs = 50
@@ -51,10 +61,10 @@ model = Chain(
 )
 
 # Load onto GPU if available
-@info("Loading onto GPU")
-model = gpu(model)
-trainloader = gpu(trainloader)
-testloader = gpu(testloader)
+# @info("Loading onto GPU")
+# model = gpu(model)
+# trainloader = gpu(trainloader)
+# testloader = gpu(testloader)
 
 opt = ADAM(1e-05, (0.99, 0.999))
 
@@ -65,7 +75,7 @@ end
 function evaluate(testloader)
     errors = []
     for (x, y) in testloader
-        mse = loss(x, y)
+        mse = Flux.mse(cpu(model(x)), cpu(y))
         append!(errors, mse)
     end
     return mean(errors)
