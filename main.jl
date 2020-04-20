@@ -23,6 +23,7 @@ csv_path = "" # ------------------------ TO BE SET
 dataset_size = 10_000
 batch_size = 64
 epochs = 50
+patience = 10
 train_test_split = 0.8
 random_seed = 2
 Random.seed!(random_seed)
@@ -98,6 +99,15 @@ for epoch_idx in 1:epochs
         BSON.@save joinpath(dirname(@__FILE__), filename) model epoch_idx new_val
     end
 
-    # TODO: Add learning rate scheduler
+    # Learning rate scheduler
+    if epoch_idx == 40 || epoch_idx == 60 || epoch_idx == 80
+        opt.eta /= 10.0
+        @info(@sprintf("Epoch [%d]: Dropping learning rate to %.1e", epoch_idx, opt.eta))
+    end
+
+    # Early stopping
+    if epoch_idx - last_improvement > patience
+        Flux.stop()
+    end
 
 end
