@@ -62,8 +62,8 @@ model = Chain(
 )
 
 # Load onto GPU if available
-# @info("Loading onto GPU")
-# model = gpu(model)
+@info("Loading onto GPU")
+model = gpu(model)
 # trainloader = gpu(trainloader)
 # testloader = gpu(testloader)
 
@@ -107,7 +107,8 @@ for epoch_idx in 1:epochs
 
     # Early stopping
     if epoch_idx - last_improvement > patience
-        Flux.stop()
+        @info("Early stopping...")
+        exit()
     end
 
 end
