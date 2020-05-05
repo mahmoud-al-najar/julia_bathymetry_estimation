@@ -63,7 +63,12 @@ function Base.iterate(it::DataLoader, start = 1)
 
   for i in 1:length(raw_batch[1])  # last batch could be smaller than (it.batchsize)
     # raw_batch[1][i] here includes the path to the h5 file to be read
-    img = permutedims(cpu(h5open(raw_batch[1][i], "r"))["data"][1:4,:,1:40], [2, 3, 1])
+    
+    # img = permutedims(cpu(h5open(raw_batch[1][i], "r"))["data"][1:4,:,1:40], [2, 3, 1])
+    f = cpu(h5open(raw_batch[1][i], "r"))
+    img = permutedims(f["data"][1:4,:,1:40], [2, 3, 1])
+    close(f)
+
     X_batch[:, :, :, i] = img
 
     depth = raw_batch[2][i]
